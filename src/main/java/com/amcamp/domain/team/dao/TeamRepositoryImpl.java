@@ -8,6 +8,7 @@ import com.amcamp.global.exception.CommonException;
 import com.amcamp.global.exception.errorcode.TeamErrorCode;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,19 +27,8 @@ public class TeamRepositoryImpl implements TeamRepositoryCustom {
     public Slice<TeamInfoResponse> findAllTeamByMemberId(
             Long memberId, Long lastTeamId, int pageSize) {
         List<TeamInfoResponse> results =
-                jpaQueryFactory
-                        .select(
-                                Projections.constructor(
-                                        TeamInfoResponse.class,
-                                        team.id,
-                                        team.name,
-                                        team.description,
-                                        team.emoji))
-                        .from(teamParticipant)
-                        .leftJoin(teamParticipant.team, team)
-                        .on(team.id.eq(teamParticipant.team.id))
-                        .where(lastTeamId(lastTeamId), teamParticipant.member.id.eq(memberId))
-                        .orderBy(teamParticipant.createdDt.desc())
+                createTeamQueryByMemberId(memberId)
+                        .where(lastTeamId(lastTeamId))
                         .limit(pageSize + 1)
                         .fetch();
 
@@ -47,6 +37,27 @@ public class TeamRepositoryImpl implements TeamRepositoryCustom {
         }
 
         return checkLastPage(pageSize, results);
+    }
+
+    @Override
+    public List<TeamInfoResponse> findAllTeamByMemberId(Long memberId) {
+        return createTeamQueryByMemberId(memberId).fetch();
+    }
+
+    private JPAQuery<TeamInfoResponse> createTeamQueryByMemberId(Long memberId) {
+        return jpaQueryFactory
+                .select(
+                        Projections.constructor(
+                                TeamInfoResponse.class,
+                                team.id,
+                                team.name,
+                                team.description,
+                                team.emoji))
+                .from(teamParticipant)
+                .leftJoin(teamParticipant.team, team)
+                .on(team.id.eq(teamParticipant.team.id))
+                .where(teamParticipant.member.id.eq(memberId))
+                .orderBy(teamParticipant.createdDt.desc());
     }
 
     private BooleanExpression lastTeamId(Long teamId) {

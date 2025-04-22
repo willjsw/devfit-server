@@ -14,8 +14,8 @@ public class CookieUtil {
         ResponseCookie refreshTokenCookie =
                 ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken)
                         .path("/")
-                        .secure(false)
-                        .sameSite(Cookie.SameSite.NONE.attributeValue())
+                        .secure(true)
+                        .sameSite(determineSameSitePolicy())
                         .httpOnly(true)
                         .build();
 
@@ -30,8 +30,8 @@ public class CookieUtil {
                 ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
                         .path("/")
                         .maxAge(0)
-                        .secure(false)
-                        .sameSite(Cookie.SameSite.NONE.attributeValue())
+                        .secure(true)
+                        .sameSite(determineSameSitePolicy())
                         .httpOnly(true)
                         .build();
 
@@ -39,5 +39,9 @@ public class CookieUtil {
         headers.add(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
         return headers;
+    }
+
+    private String determineSameSitePolicy() {
+        return Cookie.SameSite.NONE.attributeValue();
     }
 }

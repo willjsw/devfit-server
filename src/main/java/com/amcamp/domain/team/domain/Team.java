@@ -1,7 +1,6 @@
 package com.amcamp.domain.team.domain;
 
 import com.amcamp.domain.common.model.BaseTimeEntity;
-import com.amcamp.domain.team.dto.request.TeamEmojiUpdateRequest;
 import com.amcamp.domain.team.dto.request.TeamUpdateRequest;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -34,11 +33,15 @@ public class Team extends BaseTimeEntity {
     }
 
     public void updateTeam(TeamUpdateRequest teamUpdateRequest) {
-        this.name = teamUpdateRequest.teamName();
-        this.description = teamUpdateRequest.teamDescription();
-    }
-
-    public void updateTeamEmoji(TeamEmojiUpdateRequest teamEmojiUpdateRequest) {
-        this.emoji = teamEmojiUpdateRequest.teamEmoji();
+        this.name =
+                (teamUpdateRequest.teamName() != null) ? teamUpdateRequest.teamName() : this.name;
+        this.description =
+                (teamUpdateRequest.teamDescription() != null)
+                        ? teamUpdateRequest.teamDescription()
+                        : this.description;
+        this.emoji =
+                (teamUpdateRequest.teamEmoji() != null)
+                        ? teamUpdateRequest.teamEmoji()
+                        : this.emoji;
     }
 }

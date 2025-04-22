@@ -3,6 +3,8 @@ package com.amcamp.domain.project.domain;
 import com.amcamp.domain.common.model.BaseTimeEntity;
 import com.amcamp.domain.sprint.domain.Sprint;
 import com.amcamp.domain.team.domain.Team;
+import com.amcamp.global.exception.CommonException;
+import com.amcamp.global.exception.errorcode.ProjectErrorCode;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -33,35 +35,48 @@ public class Project extends BaseTimeEntity {
     // 설명
     @Lob private String description;
 
-    //    // 프로젝트 목표
-    //    @Lob private String goal;
+    private LocalDate startDt;
 
-    @Embedded private ToDoInfo toDoInfo;
+    private LocalDate dueDt;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Sprint> sprints = new ArrayList<>();
 
     // 캘린더
     @Builder(access = AccessLevel.PRIVATE)
-    private Project(Team team, String title, String description, ToDoInfo toDoInfo) {
+    private Project(
+            Team team, String title, String description, LocalDate startDt, LocalDate dueDt) {
         this.team = team;
         this.title = title;
         this.description = description;
-        this.toDoInfo = toDoInfo;
+        this.startDt = startDt;
+        this.dueDt = dueDt;
     }
 
     public static Project createProject(
-            Team team, String title, String description, LocalDate startDt, LocalDate dueDt) {
+            Team team, String title, String description, LocalDate dueDt) {
+        validateDueDt(LocalDate.now(), dueDt);
         return Project.builder()
                 .team(team)
                 .title(title)
                 .description(description)
-                .toDoInfo(ToDoInfo.createToDoInfo(startDt, dueDt))
+                .startDt(LocalDate.now())
+                .dueDt(dueDt)
                 .build();
     }
 
-    public void updateBasic(String title, String description) {
-        this.title = (title != null) ? title : this.title;
-        this.description = (description != null) ? description : this.description;
+    public void updateProject(String title, String description, LocalDate dueDt) {
+        if (title != null) this.title = title;
+        if (description != null) this.description = description;
+        if (dueDt != null) {
+            validateDueDt(this.startDt, dueDt);
+            this.dueDt = dueDt;
+        }
+    }
+
+    private static void validateDueDt(LocalDate startDt, LocalDate dueDt) {
+        if (dueDt.isBefore(startDt)) {
+            throw new CommonException(ProjectErrorCode.PROJECT_DUE_DATE_BEFORE_START);
+        }
     }
 }

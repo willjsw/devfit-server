@@ -1,5 +1,6 @@
 package com.amcamp.domain.feedback.domain;
 
+import com.amcamp.domain.common.model.BaseTimeEntity;
 import com.amcamp.domain.project.domain.ProjectParticipant;
 import com.amcamp.domain.sprint.domain.Sprint;
 import jakarta.persistence.*;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Feedback {
+public class Feedback extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

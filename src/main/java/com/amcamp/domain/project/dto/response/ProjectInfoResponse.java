@@ -7,6 +7,7 @@ import java.time.LocalDate;
 public record ProjectInfoResponse(
         @Schema(description = "프로젝트 아이디", example = "1") Long projectId,
         @Schema(description = "프로젝트 제목", example = "Devfit") String projectTitle,
+        @Schema(description = "프로젝트가 속한 팀 이름", example = "1") String teamName,
         @Schema(description = "프로젝트 설명", example = "LG CNS AM Inspire Camp 사이드 프로젝트")
                 String projectDescription,
         @Schema(description = "프로젝트 시작 날짜", example = "2024-01-01") LocalDate startDt,
@@ -16,8 +17,9 @@ public record ProjectInfoResponse(
         return new ProjectInfoResponse(
                 project.getId(),
                 project.getTitle(),
+                project.getTeam().getName(),
                 project.getDescription(),
-                project.getToDoInfo().getStartDt(),
-                project.getToDoInfo().getDueDt());
+                project.getStartDt(),
+                project.getDueDt());
     }
 }

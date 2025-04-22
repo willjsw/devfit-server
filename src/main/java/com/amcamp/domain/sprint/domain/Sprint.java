@@ -1,10 +1,13 @@
 package com.amcamp.domain.sprint.domain;
 
 import com.amcamp.domain.common.model.BaseTimeEntity;
+import com.amcamp.domain.contribution.domain.Contribution;
+import com.amcamp.domain.feedback.domain.Feedback;
+import com.amcamp.domain.meeting.domain.Meeting;
 import com.amcamp.domain.project.domain.Project;
-import com.amcamp.domain.project.domain.ToDoInfo;
-import com.amcamp.domain.project.domain.ToDoStatus;
 import com.amcamp.domain.task.domain.Task;
+import com.amcamp.global.exception.CommonException;
+import com.amcamp.global.exception.errorcode.SprintErrorCode;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -31,43 +34,75 @@ public class Sprint extends BaseTimeEntity {
 
     @Lob private String goal;
 
-    @Embedded private ToDoInfo toDoInfo;
+    private LocalDate startDt;
+
+    private LocalDate dueDt;
+
+    @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Feedback> feedbacks = new ArrayList<>();
 
     // Task
     @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks = new ArrayList<>();
 
+    // Meeting
+    @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Meeting> meetings = new ArrayList<>();
+
     // 기여도
     @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SprintContribution> contributions = new ArrayList<>();
+    private List<Contribution> contribution = new ArrayList<>();
+
+    // 진척도
+    private Double progress;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Sprint(Project project, String title, String goal, ToDoInfo toDoInfo) {
+    private Sprint(
+            Project project,
+            String title,
+            String goal,
+            LocalDate startDt,
+            LocalDate dueDt,
+            Double progress) {
         this.project = project;
         this.title = title;
         this.goal = goal;
-        this.toDoInfo = toDoInfo;
+        this.startDt = startDt;
+        this.dueDt = dueDt;
+        this.progress = progress;
     }
 
-    public static Sprint createSprint(
-            Project project, String title, String goal, LocalDate startDt, LocalDate dueDt) {
+    public static Sprint createSprint(Project project, String title, String goal, LocalDate dueDt) {
+        validateDueDt(LocalDate.now(), dueDt);
         return Sprint.builder()
                 .project(project)
                 .title(title)
                 .goal(goal)
-                .toDoInfo(ToDoInfo.createToDoInfo(startDt, dueDt))
+                .progress(0.0)
+                .startDt(LocalDate.now())
+                .dueDt(dueDt)
                 .build();
     }
 
-    public void updateSprintBasic(String goal) {
+    public void updateSprint(String goal, LocalDate dueDt) {
         if (goal != null) this.goal = goal;
-    }
-
-    public void updateSprintToDo(LocalDate startDt, LocalDate dueDt, ToDoStatus status) {
-        toDoInfo.updateToDoInfo(startDt, dueDt, status);
+        if (dueDt != null) {
+            validateDueDt(this.startDt, dueDt);
+            this.dueDt = dueDt;
+        }
     }
 
     public void updateSprintTitle(String title) {
         this.title = title;
+    }
+
+    public void updateProgress(Double progress) {
+        this.progress = progress;
+    }
+
+    private static void validateDueDt(LocalDate startDt, LocalDate dueDt) {
+        if (dueDt.isBefore(startDt)) {
+            throw new CommonException(SprintErrorCode.SPRINT_DUE_DATE_BEFORE_START);
+        }
     }
 }

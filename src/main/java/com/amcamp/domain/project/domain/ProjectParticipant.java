@@ -25,40 +25,32 @@ public class ProjectParticipant extends BaseTimeEntity {
     @JoinColumn(name = "project_id")
     private Project project;
 
-    private String projectNickname;
-
-    private String projectProfile;
-
     // 프로젝트 내 권한
     @Enumerated(EnumType.STRING)
     private ProjectParticipantRole projectRole;
+
+    @Enumerated(EnumType.STRING)
+    private ProjectParticipantStatus status;
 
     @Builder(access = AccessLevel.PRIVATE)
     private ProjectParticipant(
             TeamParticipant teamParticipant,
             Project project,
-            String projectNickname,
-            String projectProfile,
-            ProjectParticipantRole projectRole) {
+            ProjectParticipantRole projectRole,
+            ProjectParticipantStatus status) {
         this.teamParticipant = teamParticipant;
         this.project = project;
-        this.projectNickname = projectNickname;
-        this.projectProfile = projectProfile;
         this.projectRole = projectRole;
+        this.status = status;
     }
 
     public static ProjectParticipant createProjectParticipant(
-            TeamParticipant teamParticipant,
-            Project project,
-            String projectNickname,
-            String projectProfile,
-            ProjectParticipantRole projectRole) {
+            TeamParticipant teamParticipant, Project project, ProjectParticipantRole projectRole) {
         return ProjectParticipant.builder()
                 .teamParticipant(teamParticipant)
                 .project(project)
-                .projectNickname(projectNickname)
-                .projectProfile(projectProfile)
                 .projectRole(projectRole)
+                .status(ProjectParticipantStatus.ACTIVE)
                 .build();
     }
 
@@ -66,8 +58,7 @@ public class ProjectParticipant extends BaseTimeEntity {
         this.projectRole = projectRole;
     }
 
-    public void changeParticipantToUnknown() {
-        this.projectNickname = String.valueOf(ProjectParticipantUnknown.NICKNAME);
-        this.projectProfile = String.valueOf(ProjectParticipantUnknown.PROFILE_URL);
+    public void changeStatus(ProjectParticipantStatus status) {
+        this.status = status;
     }
 }

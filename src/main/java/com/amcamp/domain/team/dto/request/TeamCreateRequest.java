@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 public record TeamCreateRequest(
         @NotBlank(message = "팀 이름은 필수 사항입니다.")
-                @Size(max = 15, message = "팀 이름은 최대 25자까지 입력 가능합니다.")
+                @Size(max = 15, message = "팀 이름은 최대 15자까지 입력 가능합니다.")
                 @Schema(description = "팀 이름", example = "Side Effect")
                 String teamName,
         @Size(max = 100, message = "팀 설명은 최대 100자까지 입력 가능합니다.")

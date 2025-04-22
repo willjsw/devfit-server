@@ -4,6 +4,7 @@ spring:
       test: "test"
       local: "local"
       dev: "dev, datasource, actuator"
+      prod: "prod, datasource, actuator"
     include:
       - redis
       - security
@@ -19,3 +20,7 @@ spring-doc:
     disable-swagger-default-url: true
     path: /swagger-ui
     doc-expansion : none
+
+swagger:
+  username: ${SWAGGER_USERNAME:default}
+  password: ${SWAGGER_PASSWORD:default}

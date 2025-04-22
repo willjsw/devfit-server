@@ -6,24 +6,25 @@ import com.amcamp.domain.project.dao.ProjectRepository;
 import com.amcamp.domain.project.domain.Project;
 import com.amcamp.domain.project.domain.ProjectParticipant;
 import com.amcamp.domain.project.domain.ProjectParticipantRole;
-import com.amcamp.domain.project.domain.ToDoInfo;
+import com.amcamp.domain.sprint.dao.SprintPagingDirection;
 import com.amcamp.domain.sprint.dao.SprintRepository;
 import com.amcamp.domain.sprint.domain.Sprint;
-import com.amcamp.domain.sprint.dto.request.SprintBasicUpdateRequest;
 import com.amcamp.domain.sprint.dto.request.SprintCreateRequest;
-import com.amcamp.domain.sprint.dto.request.SprintToDoUpdateRequest;
+import com.amcamp.domain.sprint.dto.request.SprintUpdateRequest;
+import com.amcamp.domain.sprint.dto.response.SprintDetailResponse;
+import com.amcamp.domain.sprint.dto.response.SprintIdResponse;
 import com.amcamp.domain.sprint.dto.response.SprintInfoResponse;
 import com.amcamp.domain.team.dao.TeamParticipantRepository;
 import com.amcamp.domain.team.domain.Team;
 import com.amcamp.domain.team.domain.TeamParticipant;
 import com.amcamp.global.exception.CommonException;
-import com.amcamp.global.exception.errorcode.GlobalErrorCode;
 import com.amcamp.global.exception.errorcode.ProjectErrorCode;
 import com.amcamp.global.exception.errorcode.SprintErrorCode;
 import com.amcamp.global.exception.errorcode.TeamErrorCode;
 import com.amcamp.global.util.MemberUtil;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -45,46 +46,33 @@ public class SprintService {
         final Project project = findByProjectId(request.projectId());
 
         validateProjectParticipant(project, project.getTeam(), currentMember);
-        validateDate(request.startDt(), request.dueDt(), project.getToDoInfo());
+
+        validatePreviousSprintEnded(project);
+        validateSprintDueDate(request.dueDt(), project.getDueDt());
 
         long count = sprintRepository.countByProject(project);
         String autoTitle = String.valueOf(count + 1);
 
         Sprint sprint =
                 sprintRepository.save(
-                        Sprint.createSprint(
-                                project,
-                                autoTitle,
-                                request.goal(),
-                                request.startDt(),
-                                request.dueDt()));
+                        Sprint.createSprint(project, autoTitle, request.goal(), request.dueDt()));
 
         return SprintInfoResponse.from(sprint);
     }
 
-    public SprintInfoResponse updateSprintBasicInfo(
-            Long sprintId, SprintBasicUpdateRequest request) {
+    public SprintInfoResponse updateSprint(Long sprintId, SprintUpdateRequest request) {
         final Member currentMember = memberUtil.getCurrentMember();
         final Sprint sprint = findBySprintId(sprintId);
 
         validateProjectParticipant(
                 sprint.getProject(), sprint.getProject().getTeam(), currentMember);
 
-        sprint.updateSprintBasic(request.goal());
+        if (request.dueDt() != null) {
+            validateSprintDueDate(request.dueDt(), sprint.getProject().getDueDt());
+            validateDueDtIfNextSprintExists(sprint.getProject(), request.dueDt(), sprintId);
+        }
 
-        return SprintInfoResponse.from(sprint);
-    }
-
-    public SprintInfoResponse updateSprintToDoInfo(Long sprintId, SprintToDoUpdateRequest request) {
-        final Member currentMember = memberUtil.getCurrentMember();
-        final Sprint sprint = findBySprintId(sprintId);
-
-        validateProjectParticipant(
-                sprint.getProject(), sprint.getProject().getTeam(), currentMember);
-
-        validateDate(request.startDt(), request.dueDt(), sprint.getProject().getToDoInfo());
-
-        sprint.updateSprintToDo(request.startDt(), request.dueDt(), request.status());
+        sprint.updateSprint(request.goal(), request.dueDt());
 
         return SprintInfoResponse.from(sprint);
     }
@@ -109,7 +97,21 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
-    public Slice<SprintInfoResponse> findAllSprint(Long projectId, Long lastSprintId) {
+    public SprintInfoResponse findSprint(Long sprintId) {
+        final Member currentMember = memberUtil.getCurrentMember();
+        final Sprint sprint = findBySprintId(sprintId);
+        final Project project = findByProjectId(sprint.getProject().getId());
+
+        teamParticipantRepository
+                .findByMemberAndTeam(currentMember, project.getTeam())
+                .orElseThrow(() -> new CommonException(TeamErrorCode.TEAM_PARTICIPANT_REQUIRED));
+
+        return SprintInfoResponse.from(sprint);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<SprintDetailResponse> findAllSprint(
+            Long projectId, Long baseSprintId, SprintPagingDirection direction) {
         final Member currentMember = memberUtil.getCurrentMember();
         final Project project = findByProjectId(projectId);
 
@@ -117,7 +119,34 @@ public class SprintService {
                 .findByMemberAndTeam(currentMember, project.getTeam())
                 .orElseThrow(() -> new CommonException(TeamErrorCode.TEAM_PARTICIPANT_REQUIRED));
 
-        return sprintRepository.findAllSprintByProjectId(projectId, lastSprintId);
+        validatePagingRequest(baseSprintId, direction);
+
+        return sprintRepository.findAllSprintByProjectId(projectId, baseSprintId, direction);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SprintIdResponse> findAllSprintId(Long projectId) {
+        final Member currentMember = memberUtil.getCurrentMember();
+        final Project project = findByProjectId(projectId);
+        ProjectParticipant participant =
+                validateProjectParticipant(project, project.getTeam(), currentMember);
+
+        return sprintRepository.findAllSprintIdByProjectId(projectId);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<SprintDetailResponse> findAllSprintByMember(
+            Long projectId, Long baseSprintId, SprintPagingDirection direction) {
+        final Member currentMember = memberUtil.getCurrentMember();
+        final Project project = findByProjectId(projectId);
+
+        ProjectParticipant participant =
+                validateProjectParticipant(project, project.getTeam(), currentMember);
+
+        validatePagingRequest(baseSprintId, direction);
+
+        return sprintRepository.findAllSprintByProjectIdAndAssignee(
+                projectId, baseSprintId, direction, participant);
     }
 
     private Sprint findBySprintId(Long sprintId) {
@@ -152,9 +181,37 @@ public class SprintService {
         }
     }
 
-    private void validateDate(LocalDate startDt, LocalDate dueDt, ToDoInfo toDoInfo) {
-        if (startDt.isBefore(toDoInfo.getStartDt()) || dueDt.isAfter(toDoInfo.getDueDt())) {
-            throw new CommonException(GlobalErrorCode.INVALID_DATE_ERROR);
+    private void validateSprintDueDate(LocalDate sprintDueDt, LocalDate projectDueDt) {
+        if (sprintDueDt.isAfter(projectDueDt)) {
+            throw new CommonException(SprintErrorCode.SPRINT_DUE_DATE_EXCEEDS_PROJECT_END);
+        }
+    }
+
+    private void validatePreviousSprintEnded(Project project) {
+        sprintRepository
+                .findTopByProjectOrderByCreatedDtDesc(project)
+                .filter(sprint -> !sprint.getDueDt().isBefore(LocalDate.now()))
+                .ifPresent(
+                        sprint -> {
+                            throw new CommonException(SprintErrorCode.PREVIOUS_SPRINT_NOT_ENDED);
+                        });
+    }
+
+    private void validateDueDtIfNextSprintExists(Project project, LocalDate dueDt, Long sprintId) {
+        Optional<Sprint> nextSprint =
+                sprintRepository.findNextSprintAfterDueDate(project.getId(), dueDt, sprintId);
+
+        if (nextSprint.isPresent()) {
+            if (!dueDt.isBefore(nextSprint.get().getStartDt())) {
+                throw new CommonException(SprintErrorCode.SPRINT_DUE_DATE_CONFLICT_WITH_NEXT);
+            }
+        }
+    }
+
+    private void validatePagingRequest(Long baseSprintId, SprintPagingDirection direction) {
+        boolean onlyOnePresent = (baseSprintId == null) != (direction == null);
+        if (onlyOnePresent) {
+            throw new CommonException(SprintErrorCode.INVALID_PAGING_REQUEST);
         }
     }
 }

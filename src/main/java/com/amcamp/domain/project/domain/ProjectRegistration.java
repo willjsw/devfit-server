@@ -22,7 +22,7 @@ public class ProjectRegistration extends BaseTimeEntity {
     private Project project;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_participant_id", unique = true)
+    @JoinColumn(name = "team_participant_id", unique = true)
     private TeamParticipant requester;
 
     @Enumerated(EnumType.STRING)

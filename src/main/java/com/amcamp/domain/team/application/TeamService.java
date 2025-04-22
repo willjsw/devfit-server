@@ -9,7 +9,6 @@ import com.amcamp.domain.team.domain.Team;
 import com.amcamp.domain.team.domain.TeamParticipant;
 import com.amcamp.domain.team.domain.TeamParticipantRole;
 import com.amcamp.domain.team.dto.request.TeamCreateRequest;
-import com.amcamp.domain.team.dto.request.TeamEmojiUpdateRequest;
 import com.amcamp.domain.team.dto.request.TeamInviteCodeRequest;
 import com.amcamp.domain.team.dto.request.TeamUpdateRequest;
 import com.amcamp.domain.team.dto.response.TeamAdminResponse;
@@ -21,6 +20,7 @@ import com.amcamp.global.exception.errorcode.TeamErrorCode;
 import com.amcamp.global.util.MemberUtil;
 import com.amcamp.global.util.RandomUtil;
 import com.amcamp.global.util.RedisUtil;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Slice;
@@ -88,19 +88,11 @@ public class TeamService {
         TeamUpdateRequest normalizedTeamUpdateRequest =
                 new TeamUpdateRequest(
                         normalizeTeamName(teamUpdateRequest.teamName()),
-                        teamUpdateRequest.teamDescription());
+                        teamUpdateRequest.teamDescription(),
+                        teamUpdateRequest.teamEmoji());
 
         team.updateTeam(normalizedTeamUpdateRequest);
 
-        return TeamInfoResponse.from(team);
-    }
-
-    public TeamInfoResponse editTeamEmoji(
-            Long teamId, TeamEmojiUpdateRequest teamEmojiUpdateRequest) {
-        Member member = memberUtil.getCurrentMember();
-        Team team = validateTeam(teamId);
-        validateAdminParticipant(member, team);
-        team.updateTeamEmoji(teamEmojiUpdateRequest);
         return TeamInfoResponse.from(team);
     }
 
@@ -144,6 +136,9 @@ public class TeamService {
     }
 
     private String normalizeTeamName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return name;
+        }
         return name.trim().replaceAll("[^0-9a-zA-Z가-힣 ]", "_");
     }
 
@@ -183,6 +178,12 @@ public class TeamService {
     public Slice<TeamInfoResponse> findAllTeam(Long lastTeamId, int pageSize) {
         Member currentMember = memberUtil.getCurrentMember();
         return teamRepository.findAllTeamByMemberId(currentMember.getId(), lastTeamId, pageSize);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamInfoResponse> findAllTeam() {
+        Member currentMember = memberUtil.getCurrentMember();
+        return teamRepository.findAllTeamByMemberId(currentMember.getId());
     }
 
     @Transactional(readOnly = true)
